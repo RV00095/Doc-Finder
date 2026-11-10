@@ -41,12 +41,12 @@ def fetch_doc_lk_specialties():
         return []
 
 def parse_channel_page(channel_url, fallback_doc_name="Unknown Doctor"):
-    """Scrape a doctor's channel page for sessions, active bookings, and hospital names."""
+    """Scrape a doctor's channel page with bulletproof Active Appointment count extraction."""
     results = []
     doc_name = fallback_doc_name
 
     try:
-        r = requests.get(channel_url, headers=HEADERS, timeout=8)
+        r = requests.get(channel_url, headers=HEADERS, timeout=10)
         if r.status_code != 200:
             return doc_name, results
 
@@ -56,56 +56,100 @@ def parse_channel_page(channel_url, fallback_doc_name="Unknown Doctor"):
         title_tag = soup.find('title')
         if title_tag:
             t_txt = title_tag.get_text()
-            m = re.search(r'Channel\s+(.*?)\s+-', t_txt)
+            m = re.search(r'Channel\s+(.*?)\s+-', t_txt, re.I)
             if m:
                 doc_name = m.group(1).strip()
 
-        if doc_name == "Unknown Doctor":
+        if doc_name == "Unknown Doctor" or not doc_name:
             h_tag = soup.find(['h1', 'h2', 'h3'])
             if h_tag:
                 doc_name = h_tag.get_text(strip=True)
 
-        page_text = soup.get_text(separator="\n")
-        lines = [line.strip() for line in page_text.split("\n") if line.strip()]
+        # 2. Extract Session Cards/Blocks
+        # Use space separator to avoid splitting labels and numbers across newlines
+        full_text = soup.get_text(separator=" ", strip=True)
+        clean_text = re.sub(r'\s+', ' ', full_text)
 
-        current_hospital = "Unknown Hospital"
-        
-        for i, line in enumerate(lines):
-            # Detect hospital header
-            if "hospital" in line.lower() and len(line) < 70 and not "active" in line.lower():
-                current_hospital = line.replace("Sessions", "").replace("sessions", "").strip()
+        # Look for containers (divs, trs, li) that hold individual session data
+        containers = []
+        for tag in soup.find_all(['div', 'tr', 'li', 'section']):
+            t_text = tag.get_text(separator=" ", strip=True)
+            if re.search(MONTHS_REGEX, t_text, re.I) and ("active" in t_text.lower() or "appointment" in t_text.lower()):
+                if len(t_text) < 400: # Ensure localized session snippet
+                    containers.append((tag, t_text))
 
-            # Detect session date line
-            if re.search(MONTHS_REGEX, line, re.I) and re.search(r'\d{4}', line):
-                date_time_str = line
-                active_count = 0
+        parsed_sessions = []
+
+        if containers:
+            for tag, c_text in containers:
+                # Find hospital header
+                hosp = "Unknown Hospital"
+                curr = tag
+                while curr and curr.parent:
+                    prev_h = curr.find_previous(['h2', 'h3', 'h4', 'h5', 'strong', 'b'])
+                    if prev_h:
+                        p_txt = prev_h.get_text(strip=True)
+                        if len(p_txt) < 80 and "active" not in p_txt.lower() and "doc" not in p_txt.lower():
+                            hosp = p_txt.replace("Sessions", "").replace("sessions", "").strip()
+                            break
+                    curr = curr.parent
+
+                # Extract Active Appointments count accurately
+                act_m = re.search(r'Active\s*Appointments?\s*:?\s*(\d+)', c_text, re.I)
+                active_count = int(act_m.group(1)) if act_m else 0
+
+                # Extract Date & Time
+                dt_m = re.search(r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}[^Active]*?)(?:Active|NOT AVAILABLE|CANCELLED|$)', c_text, re.I)
+                dt_str = dt_m.group(1).strip() if dt_m else c_text[:60]
+
                 status_str = "Active"
+                if "NOT AVAILABLE" in c_text.upper():
+                    status_str = "NOT AVAILABLE"
+                elif "CANCELLED" in c_text.upper():
+                    status_str = "CANCELLED"
 
-                # Look forward for Active Appointments
-                for j in range(i + 1, min(i + 12, len(lines))):
-                    next_line = lines[j]
-                    act_m = re.search(r'Active\s*Appointments\s*:\s*(\d+)', next_line, re.I)
-                    if act_m:
-                        active_count = int(act_m.group(1))
-                        status_str = next_line
-                        break
-                    if "NOT AVAILABLE" in next_line.upper() or "CANCELLED" in next_line.upper():
-                        status_str = next_line
-                        break
-
-                results.append({
+                parsed_sessions.append({
                     'doctor_name': doc_name,
-                    'hospital': current_hospital,
-                    'date_time': date_time_str,
+                    'hospital': hosp,
+                    'date_time': dt_str,
                     'active_appointments': active_count,
                     'status': status_str,
                     'source_url': channel_url
                 })
 
+        # Regex fallback if container parsing returned empty
+        if not parsed_sessions:
+            matches = re.finditer(r'Active\s*Appointments?\s*:?\s*(\d+)', clean_text, re.I)
+            for m in matches:
+                act_count = int(m.group(1))
+                snippet = clean_text[max(0, m.start() - 120): min(len(clean_text), m.end() + 80)]
+                
+                dt_m = re.search(r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}[^Active]*', snippet, re.I)
+                dt_str = dt_m.group(0).strip() if dt_m else "Session Date Available"
+
+                parsed_sessions.append({
+                    'doctor_name': doc_name,
+                    'hospital': "Hospital Session",
+                    'date_time': dt_str,
+                    'active_appointments': act_count,
+                    'status': "Active",
+                    'source_url': channel_url
+                })
+
+        # Remove duplicate sessions
+        seen = set()
+        unique_sessions = []
+        for s in parsed_sessions:
+            key = (s['doctor_name'], s['hospital'], s['date_time'], s['active_appointments'])
+            if key not in seen:
+                seen.add(key)
+                unique_sessions.append(s)
+
+        return doc_name, unique_sessions
+
     except Exception as e:
         print(f"Error scraping channel {channel_url}: {e}")
-
-    return doc_name, results
+        return doc_name, results
 
 
 @app.route('/')
@@ -139,7 +183,6 @@ def search():
                 channel_links.append(full_url)
 
         all_sessions = []
-        # Multi-threaded fetch for fast response
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = [executor.submit(parse_channel_page, url) for url in channel_links[:12]]
             for future in as_completed(futures):
@@ -164,7 +207,6 @@ def top_doctors():
     if not spec_id and not spec_name:
         return jsonify({'error': 'Specialty required'}), 400
 
-    # Search URL variations for doc.lk
     search_urls = [
         f"{BASE_URL}/search?specialization={spec_id}",
         f"{BASE_URL}/search?speciality={spec_id}",
@@ -192,7 +234,6 @@ def top_doctors():
 
     doctor_map = {}
 
-    # Scrape channels in parallel
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(parse_channel_page, url) for url in channel_links[:15]]
         for future in as_completed(futures):
@@ -215,16 +256,14 @@ def top_doctors():
                 if s['hospital'] and s['hospital'] != "Unknown Hospital":
                     doctor_map[doc_name]['hospitals'].add(s['hospital'])
 
-    # Format doctors list
     ranked_doctors = []
     for d_name, d_data in doctor_map.items():
         d_data['hospitals'] = list(d_data['hospitals'])
-        # Identify if high demand (> 10 appointments in total or single session)
         max_single = max([s['active_appointments'] for s in d_data['sessions']], default=0)
         d_data['high_demand'] = d_data['total_active_appointments'] >= 10 or max_single >= 10
         ranked_doctors.append(d_data)
 
-    # Sort strictly from Highest Active Bookings to Lowest
+    # Rank strictly from Highest Active Appointments to Lowest
     ranked_doctors.sort(key=lambda x: x['total_active_appointments'], reverse=True)
 
     return jsonify({
