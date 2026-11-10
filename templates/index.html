@@ -21,16 +21,19 @@
         .input-group { display: flex; gap: 10px; flex-wrap: wrap; }
         input[type="text"], select { flex: 1; min-width: 240px; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
         .btn { padding: 12px 20px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; color: #fff; background: #1976d2; }
+        .btn-green { background: #2e7d32; }
+        .btn-green:hover { background: #1b5e20; }
         
         .status-bar { background: #e3f2fd; color: #0d47a1; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: bold; display: none; text-align: center; }
         
-        .card { background: #fff; border-radius: 10px; margin-bottom: 15px; padding: 15px; border-left: 5px solid #1976d2; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .doc-name { font-size: 18px; font-weight: bold; color: #b71c1c; margin-bottom: 5px;}
-        .badge { background: #e8eaf6; color: #283593; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
+        .card { background: #fff; border-radius: 10px; margin-bottom: 20px; padding: 15px; border-left: 5px solid #1976d2; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .doc-name { font-size: 20px; font-weight: bold; color: #b71c1c; margin-bottom: 5px;}
+        .hosp-name { font-size: 16px; font-weight: bold; color: #1976d2; background: #e3f2fd; padding: 5px 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; border: 1px solid #90caf9;}
         
         table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
-        .booked { background: #c8e6c9; color: #1b5e20; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; }
+        .booked { background: #c8e6c9; color: #1b5e20; padding: 4px 10px; border-radius: 10px; font-weight: bold; }
         
         .leaderboard-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
         .leaderboard-item:nth-child(1) .rank { font-size: 24px; color: gold; }
@@ -39,6 +42,10 @@
         .rank { font-size: 16px; font-weight: bold; width: 40px; }
         .stats { text-align: right; }
         .big-number { font-size: 24px; font-weight: bold; color: #2e7d32; }
+        
+        /* Filters */
+        .filters { margin-top: 15px; font-size: 14px; }
+        .filters label { margin-right: 15px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -60,6 +67,10 @@
             <div class="input-group">
                 <input type="text" id="docInput" placeholder="Enter Doctor Name (e.g. Perera)" onkeypress="if(event.key==='Enter') searchDoc()">
                 <button class="btn" onclick="searchDoc()">Search</button>
+                <button class="btn btn-green" id="csvBtn" style="display:none;" onclick="downloadCSV()">📥 Download CSV</button>
+            </div>
+            <div class="filters">
+                <label><input type="checkbox" id="onlyBooked" onchange="renderCards()"> Show Only Active Bookings > 0</label>
             </div>
         </div>
         <div class="status-bar" id="searchStatus"></div>
@@ -70,29 +81,41 @@
     <div id="topTab" class="tab-content">
         <div class="search-card">
             <div class="input-group">
-                <select id="specSelect"><option>Loading Specialties...</option></select>
+                <!-- Hardcoded Popular Specialties to avoid Vercel timeouts -->
+                <select id="specSelect">
+                    <option value="9">Cardiologist</option>
+                    <option value="15">Dermatologist</option>
+                    <option value="42">Neurologist</option>
+                    <option value="29">General Physician</option>
+                    <option value="60">Psychiatrist</option>
+                    <option value="46">Orthopaedic Surgeon</option>
+                    <option value="25">ENT Surgeon</option>
+                    <option value="26">Eye Surgeon</option>
+                    <option value="14">Dental Surgeon</option>
+                    <option value="49">Paediatrician</option>
+                    <option value="31">Gynaecologist</option>
+                    <option value="76">VOG</option>
+                </select>
                 <button class="btn" onclick="getTopDoctors()">Get Leaderboard</button>
             </div>
-            <small style="color:#666; display:block; margin-top:10px;">* This checks live bookings for the top hospitals. It might take 15-30 seconds.</small>
+            <small style="color:#666; display:block; margin-top:10px;">* Live data fetching. Please wait ~5 seconds.</small>
         </div>
         <div class="status-bar" id="topStatus"></div>
         <div class="card" style="display:none;" id="leaderboardCard">
-            <h3 style="margin-bottom: 15px; color:#1976d2;">🏆 Most Booked Doctors</h3>
+            <h3 style="margin-bottom: 15px; color:#1976d2;">🏆 Most Booked Doctors (Live Data)</h3>
             <div id="topResults"></div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- UI LOGIC ---
+    let allResults = [];
+
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         event.target.classList.add('active');
-        if (tabId === 'topTab' && document.getElementById('specSelect').options.length <= 1) {
-            loadSpecialties();
-        }
     }
 
     function showStatus(id, text) {
@@ -104,8 +127,12 @@
     // --- TAB 1: SEARCH DOCTOR ---
     async function searchDoc() {
         const query = document.getElementById("docInput").value;
+        if(query.length < 2) return alert("Enter at least 2 characters");
+        
         const resultsArea = document.getElementById("searchResults");
+        document.getElementById("csvBtn").style.display = "none";
         resultsArea.innerHTML = "";
+        allResults = [];
         showStatus('searchStatus', "Searching hospitals...");
 
         try {
@@ -116,64 +143,120 @@
                 showStatus('searchStatus', "No doctors found."); return;
             }
 
-            showStatus('searchStatus', `Found ${data.items.length} hospital links. Loading sessions...`);
+            showStatus('searchStatus', `Found ${data.items.length} links. Loading sessions...`);
             
+            // Map items for rendering
+            allResults = data.items.map(item => ({
+                doctor: item.doctor,
+                specialty: item.specialty,
+                hospital: item.hospital,
+                channel_url: item.channel_url,
+                loaded: false,
+                sessions: []
+            }));
+            
+            renderCards();
+
             let loadedCount = 0;
-            for (const item of data.items) {
-                // Create card skeleton
-                const cardId = 'card-' + Math.random().toString(36).substr(2, 9);
-                resultsArea.innerHTML += `
-                    <div class="card" id="${cardId}">
-                        <div class="doc-name">${item.doctor}</div>
-                        <span class="badge">🏥 ${item.hospital}</span>
-                        <span class="badge">🩺 ${item.specialty}</span>
-                        <div class="table-container" style="color:#666;">⏳ Loading live bookings...</div>
-                    </div>
-                `;
-                
-                // Fetch details asynchronously
-                fetch("/api/channel", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({url: item.channel_url, doctor: item.doctor}) })
-                .then(r => r.json())
-                .then(details => {
-                    let tbl = "";
-                    if (details.sessions && details.sessions.length > 0) {
-                        tbl = `<table><tr><th>Date</th><th>Time</th><th>Booked</th><th>Status</th></tr>`;
-                        details.sessions.forEach(s => {
-                            tbl += `<tr><td>📅 ${s.date}</td><td>⏰ ${s.time}</td><td><span class="${s.booked > 0 ? 'booked' : ''}">${s.booked} Active</span></td><td>${s.status}</td></tr>`;
+            // Fetch channel details in batches to prevent timeouts
+            for (let i = 0; i < allResults.length; i += 3) {
+                const batch = allResults.slice(i, i + 3);
+                await Promise.all(batch.map(async (item) => {
+                    try {
+                        const r = await fetch("/api/channel", { 
+                            method: "POST", 
+                            headers: {"Content-Type": "application/json"}, 
+                            body: JSON.stringify({url: item.channel_url, doctor: item.doctor, hospital: item.hospital}) 
                         });
-                        tbl += `</table>`;
-                    } else {
-                        tbl = `<p style="color:#999; margin-top:10px;">No active sessions found.</p>`;
+                        const chData = await r.json();
+                        item.hospital = chData.hospital || item.hospital; // Update real hospital name
+                        item.sessions = chData.sessions || [];
+                    } catch (e) {
+                        item.sessions = [];
+                    } finally {
+                        item.loaded = true;
+                        loadedCount++;
+                        showStatus('searchStatus', `Loaded ${loadedCount} / ${allResults.length} hospitals.`);
+                        renderCards();
                     }
-                    document.querySelector(`#${cardId} .table-container`).innerHTML = tbl;
-                    loadedCount++;
-                    showStatus('searchStatus', `Loaded ${loadedCount} / ${data.items.length} hospitals.`);
-                });
+                }));
             }
+            showStatus('searchStatus', `✅ Complete! Loaded ${allResults.length} entries.`);
         } catch (err) {
             showStatus('searchStatus', "Error: " + err.message);
+        } finally {
+            if (allResults.length > 0) {
+                document.getElementById("csvBtn").style.display = "inline-block"; // Show CSV button
+            }
         }
+    }
+
+    function renderCards() {
+        const onlyBooked = document.getElementById("onlyBooked").checked;
+        const area = document.getElementById("searchResults");
+        let html = "";
+
+        for (const item of allResults) {
+            let sessionsToShow = item.sessions;
+            if (onlyBooked) {
+                sessionsToShow = sessionsToShow.filter(s => Number(s.booked) > 0);
+                if (item.loaded && sessionsToShow.length === 0) continue; // Skip if no booked sessions
+            }
+
+            html += `
+                <div class="card">
+                    <div class="doc-name">👨‍⚕️ ${item.doctor}</div>
+                    <div class="hosp-name">🏥 ${item.hospital}</div> <!-- HOSPITAL NAME ADDED HERE -->
+                    <div style="margin-bottom:10px;">🩺 ${item.specialty}</div>
+            `;
+
+            if (!item.loaded) {
+                html += `<div style="color:#666;">⏳ Loading live bookings...</div>`;
+            } else if (sessionsToShow.length === 0) {
+                html += `<div style="color:#999;">No sessions found (or none match filter).</div>`;
+            } else {
+                html += `<table><tr><th>Date</th><th>Time</th><th>Danata Booked</th><th>Status</th></tr>`;
+                for (const s of sessionsToShow) {
+                    html += `<tr>
+                                <td>📅 ${s.date} (${s.day})</td>
+                                <td>⏰ ${s.time}</td>
+                                <td><span class="${s.booked > 0 ? 'booked' : ''}">${s.booked} Active</span></td>
+                                <td>${s.status}</td>
+                             </tr>`;
+                }
+                html += `</table>`;
+            }
+            html += `<div style="margin-top:10px; font-size:12px;"><a href="${item.channel_url}" target="_blank">Book on Doc990 ↗</a></div></div>`;
+        }
+        area.innerHTML = html || `<p style="padding:20px; background:#fff; text-align:center;">No results match your filter.</p>`;
+    }
+
+    function downloadCSV() {
+        const onlyBooked = document.getElementById("onlyBooked").checked;
+        const rows = [["Doctor", "Specialty", "Hospital", "Date", "Day", "Time", "Booked Count", "Status", "Link"]];
+        
+        allResults.forEach(item => {
+            item.sessions.forEach(s => {
+                if (onlyBooked && Number(s.booked) <= 0) return;
+                rows.push([item.doctor, item.specialty, item.hospital, s.date, s.day, s.time, s.booked, s.status, item.channel_url]);
+            });
+        });
+
+        const csvContent = "\uFEFF" + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([csvContent], {type: "text/csv;charset=utf-8;"}));
+        link.download = "Doctor_Sessions.csv";
+        link.click();
     }
 
     // --- TAB 2: TOP DOCTORS ---
-    async function loadSpecialties() {
-        try {
-            const res = await fetch("/api/get_specialties");
-            const specs = await res.json();
-            const sel = document.getElementById("specSelect");
-            sel.innerHTML = specs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-        } catch (e) {
-            document.getElementById("specSelect").innerHTML = `<option>Error loading specialties</option>`;
-        }
-    }
-
     async function getTopDoctors() {
         const specId = document.getElementById("specSelect").value;
         const specName = document.getElementById("specSelect").options[document.getElementById("specSelect").selectedIndex].text;
         
         document.getElementById("leaderboardCard").style.display = "none";
         document.getElementById("topResults").innerHTML = "";
-        showStatus('topStatus', `Fetching all ${specName} doctors and calculating live bookings. Please wait... ⏳`);
+        showStatus('topStatus', `Fetching top ${specName} doctors. Please wait ~5 seconds... ⏳`);
 
         try {
             const res = await fetch("/api/top_doctors", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({specialty_id: specId}) });
@@ -181,9 +264,11 @@
             
             document.getElementById("topStatus").style.display = "none";
             
+            if (data.error) {
+                alert("Error: " + data.error); return;
+            }
             if (!data.doctors || data.doctors.length === 0) {
-                alert("No doctors found with active bookings for this specialty right now.");
-                return;
+                alert("No doctors found with active bookings for this specialty right now."); return;
             }
 
             let html = "";
