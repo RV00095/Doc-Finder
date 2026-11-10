@@ -1,218 +1,313 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Doctor Finder LK</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Segoe UI,Tahoma,sans-serif;background:#f0f2f5;color:#222;padding:14px}
-.wrap{max-width:1000px;margin:0 auto}
-header{background:linear-gradient(135deg,#283593,#1976d2);color:#fff;padding:22px;border-radius:12px;text-align:center;margin-bottom:14px}
-.tabs{display:flex;gap:8px;margin-bottom:12px}
-.tab{flex:1;padding:12px;border:0;border-radius:8px;font-weight:700;background:#d7dee8;cursor:pointer}
-.tab.on{background:#1976d2;color:#fff}
-.panel{display:none}.panel.on{display:block}
-.box{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-input,select{flex:1;min-width:210px;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:15px}
-button{padding:12px 14px;border:0;border-radius:8px;background:#1976d2;color:#fff;font-weight:700;cursor:pointer}
-.btn-green{background:#2e7d32}
-.status{display:none;background:#e3f2fd;color:#0d47a1;padding:10px;border-radius:8px;margin-bottom:10px;font-weight:600}
-.card{background:#fff;border-left:5px solid #1976d2;border-radius:10px;padding:14px;margin-bottom:12px}
-.name{font-size:18px;font-weight:800;color:#b71c1c}
-.hosp{display:inline-block;margin:8px 0;background:#e3f2fd;color:#0d47a1;border:1px solid #90caf9;padding:5px 10px;border-radius:6px;font-weight:700}
-table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
-th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
-.bk{background:#c8e6c9;color:#1b5e20;padding:2px 8px;border-radius:10px;font-weight:700}
-.lb{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #eee}
-.big{font-size:22px;font-weight:800;color:#2e7d32}
-small{color:#666}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doc990 Finder & Top Doctors Leaderboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .hero-header { background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); color: white; padding: 2.5rem 0; margin-bottom: 2rem; }
+        .card-custom { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .nav-pills .nav-link.active { background-color: #0d6efd; font-weight: 600; }
+        .badge-active { background-color: #198754; font-size: 0.9rem; }
+        .badge-high-demand { background-color: #dc3545; animation: pulse 2s infinite; font-size: 0.85rem; }
+        @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
+        .hospital-tag { background-color: #e9ecef; color: #495057; font-weight: 600; padding: 4px 8px; border-radius: 6px; margin-right: 5px; font-size: 0.85rem; }
+    </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>🏥 Doctor Finder LK</h1>
-    <p>Live sessions • Active bookings • Specialty leaderboard</p>
-  </header>
 
-  <div class="tabs">
-    <button class="tab on" onclick="go('search')">🔍 Search by Name</button>
-    <button class="tab" onclick="go('top')">🏆 Top Doctors</button>
-  </div>
-
-  <div id="search" class="panel on">
-    <div class="box">
-      <div class="row">
-        <input id="q" placeholder="Doctor name" onkeypress="if(event.key==='Enter')doSearch()" />
-        <button onclick="doSearch()">Search</button>
-        <button class="btn-green" id="csvBtn" style="display:none" onclick="downloadCSV()">📥 Download CSV</button>
-      </div>
-      <label style="display:block;margin-top:10px;font-size:14px">
-        <input type="checkbox" id="onlyBooked" onchange="paint()" /> Only Active Appointments &gt; 0
-      </label>
+<div class="hero-header text-center">
+    <div class="container">
+        <h1><i class="bi bi-hospital"></i> Doc990 Live Doctor Finder</h1>
+        <p class="lead mb-0">Search sessions & find Top Doctors ranked by active bookings with hospital details</p>
     </div>
-    <div id="sStatus" class="status"></div>
-    <div id="sResults"></div>
-  </div>
-
-  <div id="top" class="panel">
-    <div class="box">
-      <div class="row">
-        <select id="spec"><option value="">Loading specialties...</option></select>
-        <button onclick="doTop()">Get Leaderboard</button>
-      </div>
-      <small>Uses live doc.lk data. Takes ~10–20s.</small>
-    </div>
-    <div id="tStatus" class="status"></div>
-    <div id="tResults" class="box" style="display:none"></div>
-  </div>
 </div>
 
+<div class="container mb-5">
+    <div class="card card-custom p-3 mb-4">
+        <ul class="nav nav-pills nav-justified" id="mainTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#search-panel" type="button"><i class="bi bi-search"></i> Search Doctor by Name</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="top-tab" data-bs-toggle="tab" data-bs-target="#top-panel" type="button"><i class="bi bi-trophy-fill"></i> Top Doctors by Specialty</button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="tab-content" id="mainTabContent">
+        <!-- TAB 1: SEARCH BY NAME -->
+        <div class="tab-pane fade show active" id="search-panel" role="tabpanel">
+            <div class="card card-custom p-4 mb-4">
+                <form id="searchForm" class="row g-3 align-items-center">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Doctor Name</label>
+                        <input type="text" id="doctorQuery" class="form-control form-control-lg" placeholder="e.g. Perera or Karunaratne" required>
+                    </div>
+                    <div class="col-md-4 d-grid mt-auto">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-search"></i> Search Sessions</button>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="filterActiveOnly">
+                            <label class="form-check-label fw-bold text-success" for="filterActiveOnly">
+                                <i class="bi bi-funnel-fill"></i> Show Only Active Booking Sessions (>0 Bookings)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div id="searchSpinner" class="text-center d-none my-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+                <p class="mt-2 text-muted fw-bold">Searching live sessions across hospitals...</p>
+            </div>
+
+            <div id="searchResults" class="d-none">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 id="searchSummary" class="fw-bold text-secondary"></h4>
+                    <button id="downloadCsvBtn" class="btn btn-outline-success"><i class="bi bi-download"></i> Download CSV</button>
+                </div>
+                <div class="table-responsive bg-white rounded shadow-sm">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Doctor</th>
+                                <th>Hospital</th>
+                                <th>Date & Day & Time</th>
+                                <th>Active Bookings</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: TOP DOCTORS BY SPECIALTY -->
+        <div class="tab-pane fade" id="top-panel" role="tabpanel">
+            <div class="card card-custom p-4 mb-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Select Specialty</label>
+                        <select id="specialtySelect" class="form-select form-select-lg">
+                            <option value="">Loading specialties...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-grid mt-auto">
+                        <button id="findTopDocsBtn" class="btn btn-success btn-lg"><i class="bi bi-award-fill"></i> View Leaderboard</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="topSpinner" class="text-center d-none my-5">
+                <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status"></div>
+                <p class="mt-2 text-muted fw-bold">Finding top doctors ranked by active bookings...</p>
+            </div>
+
+            <div id="topResults" class="d-none">
+                <div class="alert alert-info d-flex align-items-center fw-bold">
+                    <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                    <span id="topSummary"></span>
+                </div>
+                <div id="doctorsList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let allResults=[];
+let currentSearchResults = [];
 
-function go(id){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  document.getElementById(id).classList.add('on');
-  event.target.classList.add('on');
-  if(id==='top') loadSpecs();
-}
-function show(id,msg){const el=document.getElementById(id);el.style.display='block';el.textContent=msg;}
-function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+document.addEventListener('DOMContentLoaded', () => {
+    loadSpecialties();
 
-async function doSearch(){
-  const q=document.getElementById('q').value.trim();
-  if(q.length<2) return alert('Name too short');
-  allResults=[]; document.getElementById('sResults').innerHTML='';
-  document.getElementById('csvBtn').style.display='none';
-  show('sStatus','Searching...');
-  try{
-    const res=await fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doctor:q})});
-    const data=await res.json();
-    if(data.error) return show('sStatus','Error: '+data.error);
-    if(!data.items?.length) return show('sStatus','No doctors found');
-    allResults=data.items.map(it=>({...it,loaded:false,sessions:[]}));
-    paint();
-    show('sStatus',`Found ${allResults.length}. Loading sessions...`);
-    let done=0;
-    for(let i=0;i<allResults.length;i+=3){
-      const batch=allResults.slice(i,i+3);
-      await Promise.all(batch.map(async it=>{
-        try{
-          const r=await fetch('/api/channel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.channel_url,doctor:it.doctor,hospital:it.hospital,specialty:it.specialty})});
-          const d=await r.json();
-          it.doctor=d.doctor||it.doctor;
-          it.hospital=d.hospital||it.hospital;
-          it.specialty=d.specialty||it.specialty;
-          it.sessions=d.sessions||[];
-        }catch(e){it.sessions=[];}
-        it.loaded=true; done++; show('sStatus',`Loaded ${done}/${allResults.length}`); paint();
-      }));
+    document.getElementById('searchForm').addEventListener('submit', handleSearch);
+    document.getElementById('filterActiveOnly').addEventListener('change', renderSearchResults);
+    document.getElementById('downloadCsvBtn').addEventListener('click', downloadCSV);
+    document.getElementById('findTopDocsBtn').addEventListener('click', handleTopDoctors);
+});
+
+async function loadSpecialties() {
+    try {
+        const res = await fetch('/api/get_specialties');
+        const data = await res.json();
+        const select = document.getElementById('specialtySelect');
+        select.innerHTML = '<option value="">-- Choose a Specialty --</option>';
+        if (data.specialties && data.specialties.length > 0) {
+            data.specialties.forEach(sp => {
+                select.innerHTML += `<option value="${sp.id}" data-name="${sp.name}">${sp.name}</option>`;
+            });
+        } else {
+            select.innerHTML = '<option value="">Unable to load specialties</option>';
+        }
+    } catch (e) {
+        console.error(e);
     }
-    show('sStatus',`✅ Done (${allResults.length})`);
-    document.getElementById('csvBtn').style.display='inline-block';
-  }catch(e){show('sStatus','Error: '+e.message)}
 }
 
-function paint(){
-  const only=document.getElementById('onlyBooked').checked;
-  let html='';
-  for(const it of allResults){
-    let ss=it.sessions||[];
-    if(only) ss=ss.filter(s=>Number(s.booked)>0);
-    if(only && it.loaded && !ss.length) continue;
-    html+=`<div class="card">
-      <div class="name">👨‍⚕️ ${esc(it.doctor)}</div>
-      <div class="hosp">🏥 ${esc(it.hospital||'Unknown Hospital')}</div>
-      <div><small>🩺 ${esc(it.specialty||'')}</small></div>`;
-    if(!it.loaded) html+=`<div><small>⏳ Loading sessions...</small></div>`;
-    else if(!ss.length) html+=`<div><small>No sessions${only?' with bookings':''}</small></div>`;
-    else{
-      html+=`<table><thead><tr><th>Hospital</th><th>Date</th><th>Time</th><th>Booked</th><th>Status</th></tr></thead><tbody>`;
-      for(const s of ss){
-        html+=`<tr>
-          <td><b>🏥 ${esc(s.hospital||it.hospital)}</b></td>
-          <td>📅 ${esc(s.date)} (${esc(s.day||'')})</td>
-          <td>⏰ ${esc(s.time)}</td>
-          <td><span class="${Number(s.booked)>0?'bk':''}">${esc(s.booked)}</span></td>
-          <td>${esc(s.status)}</td>
-        </tr>`;
-      }
-      html+=`</tbody></table>`;
+async function handleSearch(e) {
+    e.preventDefault();
+    const query = document.getElementById('doctorQuery').value.trim();
+    if (!query) return;
+
+    document.getElementById('searchSpinner').classList.remove('d-none');
+    document.getElementById('searchResults').classList.add('d-none');
+
+    try {
+        const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        currentSearchResults = data.sessions || [];
+        renderSearchResults();
+    } catch (err) {
+        alert('Failed to search sessions. Please try again.');
+    } finally {
+        document.getElementById('searchSpinner').classList.add('d-none');
     }
-    html+=`<div style="margin-top:8px"><a href="${esc(it.channel_url)}" target="_blank">Open Doc990 ↗</a></div></div>`;
-  }
-  document.getElementById('sResults').innerHTML=html||'<div class="box">No results</div>';
 }
 
-function downloadCSV(){
-  const only=document.getElementById('onlyBooked').checked;
-  const rows=[['Doctor','Specialty','Hospital','Date','Day','Time','Booked','Status','URL']];
-  allResults.forEach(it=>{
-    (it.sessions||[]).forEach(s=>{
-      if(only && Number(s.booked)<=0) return;
-      rows.push([it.doctor,it.specialty,it.hospital||s.hospital,s.date,s.day,s.time,s.booked,s.status,it.channel_url]);
-    });
-  });
-  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='doctor_sessions.csv'; a.click();
-}
+function renderSearchResults() {
+    const tbody = document.getElementById('sessionsTableBody');
+    tbody.innerHTML = '';
+    const activeOnly = document.getElementById('filterActiveOnly').checked;
 
-async function loadSpecs(){
-  const sel=document.getElementById('spec');
-  if(sel.dataset.ok==='1') return;
-  try{
-    const res=await fetch('/api/get_specialties');
-    const specs=await res.json();
-    sel.innerHTML=(specs||[]).map(s=>`<option value="${esc(s.id)}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('');
-    sel.dataset.ok='1';
-  }catch(e){
-    sel.innerHTML='<option value="General Physician" data-name="General Physician">General Physician</option>';
-  }
-}
-
-async function doTop(){
-  const sel=document.getElementById('spec');
-  const id=sel.value;
-  const name=sel.options[sel.selectedIndex]?.getAttribute('data-name') || sel.options[sel.selectedIndex]?.text || '';
-  if(!id && !name) return alert('Select specialty');
-  document.getElementById('tResults').style.display='none';
-  show('tStatus',`Fetching ${name} leaderboard...`);
-  try{
-    const res=await fetch('/api/top_doctors',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({specialty_id:id, specialty_name:name})
-    });
-    const data=await res.json();
-    if(data.error) return show('tStatus','Error: '+data.error);
-    const docs=data.doctors||[];
-    if(!docs.length){
-      show('tStatus',`No ranked doctors. Links found: ${data.found_links||0}, checked: ${data.checked||0}. ${data.message||''}`);
-      return;
+    let filtered = currentSearchResults;
+    if (activeOnly) {
+        filtered = filtered.filter(s => s.active_appointments > 0);
     }
-    let html=`<h3 style="margin-bottom:8px">🏆 ${esc(name)}</h3>
-      <small>Found links: ${data.found_links||0} | Checked: ${data.checked||0}</small>`;
-    docs.forEach((d,i)=>{
-      const rank=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
-      html+=`<div class="lb">
-        <div>
-          <div style="font-weight:800">${rank} ${esc(d.name)}</div>
-          <small>🏥 ${(d.hospitals||[]).map(esc).join(', ')||'N/A'}</small><br/>
-          <small>🩺 ${esc(d.specialty||'')} • Sessions: ${d.session_count||0}</small>
-        </div>
-        <div style="text-align:right">
-          <div class="big">${d.total_booked||0}</div>
-          <small>Active bookings</small>
-        </div>
-      </div>`;
-    });
-    const box=document.getElementById('tResults');
-    box.innerHTML=html; box.style.display='block';
-    show('tStatus',`✅ Top ${docs.length} doctors loaded`);
-  }catch(e){show('tStatus','Error: '+e.message)}
+
+    document.getElementById('searchSummary').innerText = `Found ${filtered.length} session(s)`;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No sessions found matching criteria.</td></tr>`;
+    } else {
+        filtered.forEach(s => {
+            const badgeClass = s.active_appointments >= 10 ? 'bg-danger' : (s.active_appointments > 0 ? 'bg-success' : 'bg-secondary');
+            tbody.innerHTML += `
+                <tr>
+                    <td class="fw-bold">${s.doctor_name}</td>
+                    <td><span class="hospital-tag"><i class="bi bi-building"></i> ${s.hospital}</span></td>
+                    <td>${s.date_time}</td>
+                    <td><span class="badge ${badgeClass} fs-6">${s.active_appointments} Booked</span></td>
+                    <td><small class="text-muted">${s.status}</small></td>
+                    <td><a href="${s.source_url}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i> Channel</a></td>
+                </tr>
+            `;
+        });
+    }
+    document.getElementById('searchResults').classList.remove('d-none');
+}
+
+async function handleTopDoctors() {
+    const select = document.getElementById('specialtySelect');
+    const specId = select.value;
+    const specName = select.options[select.selectedIndex]?.dataset?.name || select.options[select.selectedIndex]?.text || '';
+
+    if (!specId && !specName) {
+        alert('Please select a specialty first!');
+        return;
+    }
+
+    document.getElementById('topSpinner').classList.remove('d-none');
+    document.getElementById('topResults').classList.add('d-none');
+
+    try {
+        const res = await fetch(`/api/top_doctors?specialty_id=${specId}&specialty_name=${encodeURIComponent(specName)}`);
+        const data = await res.json();
+
+        const docsList = document.getElementById('doctorsList');
+        docsList.innerHTML = '';
+
+        if (!data.doctors || data.doctors.length === 0) {
+            document.getElementById('topSummary').innerText = `No doctors found for ${specName}`;
+        } else {
+            document.getElementById('topSummary').innerText = `${data.doctors.length} Doctors Found for ${specName} (Ranked by Active Bookings)`;
+
+            data.doctors.forEach((doc, idx) => {
+                const rank = idx + 1;
+                const hospitalsHtml = doc.hospitals.map(h => `<span class="hospital-tag"><i class="bi bi-building"></i> ${h}</span>`).join(' ');
+
+                let sessionsListHtml = '';
+                doc.sessions.forEach(s => {
+                    const sessionBadge = s.active_appointments >= 10 ? 'bg-danger' : (s.active_appointments > 0 ? 'bg-success' : 'bg-secondary');
+                    sessionsListHtml += `
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div>
+                                <strong><i class="bi bi-hospital text-primary"></i> ${s.hospital}</strong>
+                                <div class="text-muted small">${s.date_time}</div>
+                            </div>
+                            <div>
+                                <span class="badge ${sessionBadge}">${s.active_appointments} Active Bookings</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                docsList.innerHTML += `
+                    <div class="card card-custom mb-3 p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge bg-primary fs-6 me-2">#${rank}</span>
+                                <h4 class="d-inline fw-bold text-dark">${doc.doctor_name}</h4>
+                                ${doc.high_demand ? '<span class="badge badge-high-demand ms-2"><i class="bi bi-fire"></i> High Demand (10+ Bookings)</span>' : ''}
+                                <div class="mt-2 mb-2">
+                                    <small class="text-muted fw-bold me-1">Hospitals:</small>
+                                    ${hospitalsHtml || '<span class="text-muted">General</span>'}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge badge-active fs-5">${doc.total_active_appointments} Total Bookings</span>
+                                <div class="mt-2">
+                                    <a href="${doc.channel_url}" target="_blank" class="btn btn-sm btn-primary"><i class="bi bi-calendar-check"></i> Channel Now</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 bg-light p-3 rounded">
+                            <h6 class="fw-bold mb-2 text-secondary"><i class="bi bi-clock-history"></i> Sessions Breakdown (${doc.sessions.length}):</h6>
+                            ${sessionsListHtml}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        document.getElementById('topResults').classList.remove('d-none');
+    } catch (err) {
+        alert('Failed to load top doctors.');
+    } finally {
+        document.getElementById('topSpinner').classList.add('d-none');
+    }
+}
+
+function downloadCSV() {
+    if (!currentSearchResults || currentSearchResults.length === 0) {
+        alert('No data to download.');
+        return;
+    }
+
+    const headers = ["Doctor Name", "Hospital", "Date Time", "Active Appointments", "Status", "Source URL"];
+    const rows = currentSearchResults.map(s => [
+        `"${s.doctor_name}"`,
+        `"${s.hospital}"`,
+        `"${s.date_time}"`,
+        s.active_appointments,
+        `"${s.status}"`,
+        `"${s.source_url}"`
+    ]);
+
+    let csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `doc990_sessions_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 </script>
 </body>
