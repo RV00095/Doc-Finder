@@ -1,303 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Doctor Finder & Leaderboard - Sri Lanka</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #222; padding: 15px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        header { background: linear-gradient(135deg, #283593, #1976d2); color: #fff; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { flex: 1; padding: 15px; background: #ddd; border: none; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.3s; }
-        .tab-btn.active { background: #1976d2; color: #fff; }
-        
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        
-        .search-card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .input-group { display: flex; gap: 10px; flex-wrap: wrap; }
-        input[type="text"], select { flex: 1; min-width: 240px; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
-        .btn { padding: 12px 20px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; color: #fff; background: #1976d2; }
-        .btn-green { background: #2e7d32; }
-        .btn-green:hover { background: #1b5e20; }
-        
-        .status-bar { background: #e3f2fd; color: #0d47a1; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: bold; display: none; text-align: center; }
-        
-        .card { background: #fff; border-radius: 10px; margin-bottom: 20px; padding: 15px; border-left: 5px solid #1976d2; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .doc-name { font-size: 20px; font-weight: bold; color: #b71c1c; margin-bottom: 5px;}
-        .hosp-name { font-size: 16px; font-weight: bold; color: #1976d2; background: #e3f2fd; padding: 5px 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; border: 1px solid #90caf9;}
-        
-        table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f5f5f5; }
-        .booked { background: #c8e6c9; color: #1b5e20; padding: 4px 10px; border-radius: 10px; font-weight: bold; }
-        
-        .leaderboard-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
-        .leaderboard-item:nth-child(1) .rank { font-size: 24px; color: gold; }
-        .leaderboard-item:nth-child(2) .rank { font-size: 20px; color: silver; }
-        .leaderboard-item:nth-child(3) .rank { font-size: 18px; color: #cd7f32; }
-        .rank { font-size: 16px; font-weight: bold; width: 40px; }
-        .stats { text-align: right; }
-        .big-number { font-size: 24px; font-weight: bold; color: #2e7d32; }
-        
-        /* Filters */
-        .filters { margin-top: 15px; font-size: 14px; }
-        .filters label { margin-right: 15px; cursor: pointer; font-weight: bold; }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Doctor Finder LK</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Segoe UI,Tahoma,sans-serif;background:#f0f2f5;color:#222;padding:14px}
+.wrap{max-width:1000px;margin:0 auto}
+header{background:linear-gradient(135deg,#283593,#1976d2);color:#fff;padding:22px;border-radius:12px;text-align:center;margin-bottom:14px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tab{flex:1;padding:12px;border:0;border-radius:8px;font-weight:700;background:#d7dee8;cursor:pointer}
+.tab.on{background:#1976d2;color:#fff}
+.panel{display:none}.panel.on{display:block}
+.box{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input,select{flex:1;min-width:210px;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:15px}
+button{padding:12px 14px;border:0;border-radius:8px;background:#1976d2;color:#fff;font-weight:700;cursor:pointer}
+.btn-green{background:#2e7d32}
+.status{display:none;background:#e3f2fd;color:#0d47a1;padding:10px;border-radius:8px;margin-bottom:10px;font-weight:600}
+.card{background:#fff;border-left:5px solid #1976d2;border-radius:10px;padding:14px;margin-bottom:12px}
+.name{font-size:18px;font-weight:800;color:#b71c1c}
+.hosp{display:inline-block;margin:8px 0;background:#e3f2fd;color:#0d47a1;border:1px solid #90caf9;padding:5px 10px;border-radius:6px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+.bk{background:#c8e6c9;color:#1b5e20;padding:2px 8px;border-radius:10px;font-weight:700}
+.lb{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #eee}
+.big{font-size:22px;font-weight:800;color:#2e7d32}
+small{color:#666}
+</style>
 </head>
 <body>
+<div class="wrap">
+  <header>
+    <h1>🏥 Doctor Finder LK</h1>
+    <p>Live sessions • Active bookings • Specialty leaderboard</p>
+  </header>
 
-<div class="container">
-    <header>
-        <h1>🏥 Doctor Finder & Leaderboard</h1>
-        <p>Live Bookings & Most Demanded Doctors in Sri Lanka</p>
-    </header>
+  <div class="tabs">
+    <button class="tab on" onclick="go('search')">🔍 Search by Name</button>
+    <button class="tab" onclick="go('top')">🏆 Top Doctors</button>
+  </div>
 
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('searchTab')">🔍 Search by Name</button>
-        <button class="tab-btn" onclick="switchTab('topTab')">🏆 Top Doctors by Specialty</button>
+  <div id="search" class="panel on">
+    <div class="box">
+      <div class="row">
+        <input id="q" placeholder="Doctor name" onkeypress="if(event.key==='Enter')doSearch()" />
+        <button onclick="doSearch()">Search</button>
+        <button class="btn-green" id="csvBtn" style="display:none" onclick="downloadCSV()">📥 Download CSV</button>
+      </div>
+      <label style="display:block;margin-top:10px;font-size:14px">
+        <input type="checkbox" id="onlyBooked" onchange="paint()" /> Only Active Appointments &gt; 0
+      </label>
     </div>
+    <div id="sStatus" class="status"></div>
+    <div id="sResults"></div>
+  </div>
 
-    <!-- TAB 1: SEARCH -->
-    <div id="searchTab" class="tab-content active">
-        <div class="search-card">
-            <div class="input-group">
-                <input type="text" id="docInput" placeholder="Enter Doctor Name (e.g. Perera)" onkeypress="if(event.key==='Enter') searchDoc()">
-                <button class="btn" onclick="searchDoc()">Search</button>
-                <button class="btn btn-green" id="csvBtn" style="display:none;" onclick="downloadCSV()">📥 Download CSV</button>
-            </div>
-            <div class="filters">
-                <label><input type="checkbox" id="onlyBooked" onchange="renderCards()"> Show Only Active Bookings > 0</label>
-            </div>
-        </div>
-        <div class="status-bar" id="searchStatus"></div>
-        <div id="searchResults"></div>
+  <div id="top" class="panel">
+    <div class="box">
+      <div class="row">
+        <select id="spec"><option value="">Loading specialties...</option></select>
+        <button onclick="doTop()">Get Leaderboard</button>
+      </div>
+      <small>Uses live doc.lk data. Takes ~10–20s.</small>
     </div>
-
-    <!-- TAB 2: TOP DOCTORS -->
-    <div id="topTab" class="tab-content">
-        <div class="search-card">
-            <div class="input-group">
-                <!-- Hardcoded Popular Specialties to avoid Vercel timeouts -->
-                <select id="specSelect">
-                    <option value="9">Cardiologist</option>
-                    <option value="15">Dermatologist</option>
-                    <option value="42">Neurologist</option>
-                    <option value="29">General Physician</option>
-                    <option value="60">Psychiatrist</option>
-                    <option value="46">Orthopaedic Surgeon</option>
-                    <option value="25">ENT Surgeon</option>
-                    <option value="26">Eye Surgeon</option>
-                    <option value="14">Dental Surgeon</option>
-                    <option value="49">Paediatrician</option>
-                    <option value="31">Gynaecologist</option>
-                    <option value="76">VOG</option>
-                </select>
-                <button class="btn" onclick="getTopDoctors()">Get Leaderboard</button>
-            </div>
-            <small style="color:#666; display:block; margin-top:10px;">* Live data fetching. Please wait ~5 seconds.</small>
-        </div>
-        <div class="status-bar" id="topStatus"></div>
-        <div class="card" style="display:none;" id="leaderboardCard">
-            <h3 style="margin-bottom: 15px; color:#1976d2;">🏆 Most Booked Doctors (Live Data)</h3>
-            <div id="topResults"></div>
-        </div>
-    </div>
+    <div id="tStatus" class="status"></div>
+    <div id="tResults" class="box" style="display:none"></div>
+  </div>
 </div>
 
 <script>
-    let allResults = [];
+let allResults=[];
 
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        event.target.classList.add('active');
+function go(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  event.target.classList.add('on');
+  if(id==='top') loadSpecs();
+}
+function show(id,msg){const el=document.getElementById(id);el.style.display='block';el.textContent=msg;}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+
+async function doSearch(){
+  const q=document.getElementById('q').value.trim();
+  if(q.length<2) return alert('Name too short');
+  allResults=[]; document.getElementById('sResults').innerHTML='';
+  document.getElementById('csvBtn').style.display='none';
+  show('sStatus','Searching...');
+  try{
+    const res=await fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doctor:q})});
+    const data=await res.json();
+    if(data.error) return show('sStatus','Error: '+data.error);
+    if(!data.items?.length) return show('sStatus','No doctors found');
+    allResults=data.items.map(it=>({...it,loaded:false,sessions:[]}));
+    paint();
+    show('sStatus',`Found ${allResults.length}. Loading sessions...`);
+    let done=0;
+    for(let i=0;i<allResults.length;i+=3){
+      const batch=allResults.slice(i,i+3);
+      await Promise.all(batch.map(async it=>{
+        try{
+          const r=await fetch('/api/channel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:it.channel_url,doctor:it.doctor,hospital:it.hospital,specialty:it.specialty})});
+          const d=await r.json();
+          it.doctor=d.doctor||it.doctor;
+          it.hospital=d.hospital||it.hospital;
+          it.specialty=d.specialty||it.specialty;
+          it.sessions=d.sessions||[];
+        }catch(e){it.sessions=[];}
+        it.loaded=true; done++; show('sStatus',`Loaded ${done}/${allResults.length}`); paint();
+      }));
     }
+    show('sStatus',`✅ Done (${allResults.length})`);
+    document.getElementById('csvBtn').style.display='inline-block';
+  }catch(e){show('sStatus','Error: '+e.message)}
+}
 
-    function showStatus(id, text) {
-        const el = document.getElementById(id);
-        el.style.display = 'block';
-        el.textContent = text;
+function paint(){
+  const only=document.getElementById('onlyBooked').checked;
+  let html='';
+  for(const it of allResults){
+    let ss=it.sessions||[];
+    if(only) ss=ss.filter(s=>Number(s.booked)>0);
+    if(only && it.loaded && !ss.length) continue;
+    html+=`<div class="card">
+      <div class="name">👨‍⚕️ ${esc(it.doctor)}</div>
+      <div class="hosp">🏥 ${esc(it.hospital||'Unknown Hospital')}</div>
+      <div><small>🩺 ${esc(it.specialty||'')}</small></div>`;
+    if(!it.loaded) html+=`<div><small>⏳ Loading sessions...</small></div>`;
+    else if(!ss.length) html+=`<div><small>No sessions${only?' with bookings':''}</small></div>`;
+    else{
+      html+=`<table><thead><tr><th>Hospital</th><th>Date</th><th>Time</th><th>Booked</th><th>Status</th></tr></thead><tbody>`;
+      for(const s of ss){
+        html+=`<tr>
+          <td><b>🏥 ${esc(s.hospital||it.hospital)}</b></td>
+          <td>📅 ${esc(s.date)} (${esc(s.day||'')})</td>
+          <td>⏰ ${esc(s.time)}</td>
+          <td><span class="${Number(s.booked)>0?'bk':''}">${esc(s.booked)}</span></td>
+          <td>${esc(s.status)}</td>
+        </tr>`;
+      }
+      html+=`</tbody></table>`;
     }
+    html+=`<div style="margin-top:8px"><a href="${esc(it.channel_url)}" target="_blank">Open Doc990 ↗</a></div></div>`;
+  }
+  document.getElementById('sResults').innerHTML=html||'<div class="box">No results</div>';
+}
 
-    // --- TAB 1: SEARCH DOCTOR ---
-    async function searchDoc() {
-        const query = document.getElementById("docInput").value;
-        if(query.length < 2) return alert("Enter at least 2 characters");
-        
-        const resultsArea = document.getElementById("searchResults");
-        document.getElementById("csvBtn").style.display = "none";
-        resultsArea.innerHTML = "";
-        allResults = [];
-        showStatus('searchStatus', "Searching hospitals...");
+function downloadCSV(){
+  const only=document.getElementById('onlyBooked').checked;
+  const rows=[['Doctor','Specialty','Hospital','Date','Day','Time','Booked','Status','URL']];
+  allResults.forEach(it=>{
+    (it.sessions||[]).forEach(s=>{
+      if(only && Number(s.booked)<=0) return;
+      rows.push([it.doctor,it.specialty,it.hospital||s.hospital,s.date,s.day,s.time,s.booked,s.status,it.channel_url]);
+    });
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='doctor_sessions.csv'; a.click();
+}
 
-        try {
-            const res = await fetch("/api/search", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({doctor: query}) });
-            const data = await res.json();
-            
-            if (!data.items || data.items.length === 0) {
-                showStatus('searchStatus', "No doctors found."); return;
-            }
+async function loadSpecs(){
+  const sel=document.getElementById('spec');
+  if(sel.dataset.ok==='1') return;
+  try{
+    const res=await fetch('/api/get_specialties');
+    const specs=await res.json();
+    sel.innerHTML=(specs||[]).map(s=>`<option value="${esc(s.id)}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+    sel.dataset.ok='1';
+  }catch(e){
+    sel.innerHTML='<option value="General Physician" data-name="General Physician">General Physician</option>';
+  }
+}
 
-            showStatus('searchStatus', `Found ${data.items.length} links. Loading sessions...`);
-            
-            // Map items for rendering
-            allResults = data.items.map(item => ({
-                doctor: item.doctor,
-                specialty: item.specialty,
-                hospital: item.hospital,
-                channel_url: item.channel_url,
-                loaded: false,
-                sessions: []
-            }));
-            
-            renderCards();
-
-            let loadedCount = 0;
-            // Fetch channel details in batches to prevent timeouts
-            for (let i = 0; i < allResults.length; i += 3) {
-                const batch = allResults.slice(i, i + 3);
-                await Promise.all(batch.map(async (item) => {
-                    try {
-                        const r = await fetch("/api/channel", { 
-                            method: "POST", 
-                            headers: {"Content-Type": "application/json"}, 
-                            body: JSON.stringify({url: item.channel_url, doctor: item.doctor, hospital: item.hospital}) 
-                        });
-                        const chData = await r.json();
-                        item.hospital = chData.hospital || item.hospital; // Update real hospital name
-                        item.sessions = chData.sessions || [];
-                    } catch (e) {
-                        item.sessions = [];
-                    } finally {
-                        item.loaded = true;
-                        loadedCount++;
-                        showStatus('searchStatus', `Loaded ${loadedCount} / ${allResults.length} hospitals.`);
-                        renderCards();
-                    }
-                }));
-            }
-            showStatus('searchStatus', `✅ Complete! Loaded ${allResults.length} entries.`);
-        } catch (err) {
-            showStatus('searchStatus', "Error: " + err.message);
-        } finally {
-            if (allResults.length > 0) {
-                document.getElementById("csvBtn").style.display = "inline-block"; // Show CSV button
-            }
-        }
+async function doTop(){
+  const sel=document.getElementById('spec');
+  const id=sel.value;
+  const name=sel.options[sel.selectedIndex]?.getAttribute('data-name') || sel.options[sel.selectedIndex]?.text || '';
+  if(!id && !name) return alert('Select specialty');
+  document.getElementById('tResults').style.display='none';
+  show('tStatus',`Fetching ${name} leaderboard...`);
+  try{
+    const res=await fetch('/api/top_doctors',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({specialty_id:id, specialty_name:name})
+    });
+    const data=await res.json();
+    if(data.error) return show('tStatus','Error: '+data.error);
+    const docs=data.doctors||[];
+    if(!docs.length){
+      show('tStatus',`No ranked doctors. Links found: ${data.found_links||0}, checked: ${data.checked||0}. ${data.message||''}`);
+      return;
     }
-
-    function renderCards() {
-        const onlyBooked = document.getElementById("onlyBooked").checked;
-        const area = document.getElementById("searchResults");
-        let html = "";
-
-        for (const item of allResults) {
-            let sessionsToShow = item.sessions;
-            if (onlyBooked) {
-                sessionsToShow = sessionsToShow.filter(s => Number(s.booked) > 0);
-                if (item.loaded && sessionsToShow.length === 0) continue; // Skip if no booked sessions
-            }
-
-            html += `
-                <div class="card">
-                    <div class="doc-name">👨‍⚕️ ${item.doctor}</div>
-                    <div class="hosp-name">🏥 ${item.hospital}</div> <!-- HOSPITAL NAME ADDED HERE -->
-                    <div style="margin-bottom:10px;">🩺 ${item.specialty}</div>
-            `;
-
-            if (!item.loaded) {
-                html += `<div style="color:#666;">⏳ Loading live bookings...</div>`;
-            } else if (sessionsToShow.length === 0) {
-                html += `<div style="color:#999;">No sessions found (or none match filter).</div>`;
-            } else {
-                html += `<table><tr><th>Date</th><th>Time</th><th>Danata Booked</th><th>Status</th></tr>`;
-                for (const s of sessionsToShow) {
-                    html += `<tr>
-                                <td>📅 ${s.date} (${s.day})</td>
-                                <td>⏰ ${s.time}</td>
-                                <td><span class="${s.booked > 0 ? 'booked' : ''}">${s.booked} Active</span></td>
-                                <td>${s.status}</td>
-                             </tr>`;
-                }
-                html += `</table>`;
-            }
-            html += `<div style="margin-top:10px; font-size:12px;"><a href="${item.channel_url}" target="_blank">Book on Doc990 ↗</a></div></div>`;
-        }
-        area.innerHTML = html || `<p style="padding:20px; background:#fff; text-align:center;">No results match your filter.</p>`;
-    }
-
-    function downloadCSV() {
-        const onlyBooked = document.getElementById("onlyBooked").checked;
-        const rows = [["Doctor", "Specialty", "Hospital", "Date", "Day", "Time", "Booked Count", "Status", "Link"]];
-        
-        allResults.forEach(item => {
-            item.sessions.forEach(s => {
-                if (onlyBooked && Number(s.booked) <= 0) return;
-                rows.push([item.doctor, item.specialty, item.hospital, s.date, s.day, s.time, s.booked, s.status, item.channel_url]);
-            });
-        });
-
-        const csvContent = "\uFEFF" + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(new Blob([csvContent], {type: "text/csv;charset=utf-8;"}));
-        link.download = "Doctor_Sessions.csv";
-        link.click();
-    }
-
-    // --- TAB 2: TOP DOCTORS ---
-    async function getTopDoctors() {
-        const specId = document.getElementById("specSelect").value;
-        const specName = document.getElementById("specSelect").options[document.getElementById("specSelect").selectedIndex].text;
-        
-        document.getElementById("leaderboardCard").style.display = "none";
-        document.getElementById("topResults").innerHTML = "";
-        showStatus('topStatus', `Fetching top ${specName} doctors. Please wait ~5 seconds... ⏳`);
-
-        try {
-            const res = await fetch("/api/top_doctors", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({specialty_id: specId}) });
-            const data = await res.json();
-            
-            document.getElementById("topStatus").style.display = "none";
-            
-            if (data.error) {
-                alert("Error: " + data.error); return;
-            }
-            if (!data.doctors || data.doctors.length === 0) {
-                alert("No doctors found with active bookings for this specialty right now."); return;
-            }
-
-            let html = "";
-            data.doctors.forEach((d, i) => {
-                const rankIcon = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i+1}`;
-                html += `
-                    <div class="leaderboard-item">
-                        <div style="display:flex; align-items:center; gap:15px;">
-                            <div class="rank">${rankIcon}</div>
-                            <div>
-                                <div class="doc-name" style="margin:0;">${d.name}</div>
-                                <small style="color:#666;">Hospitals: ${d.hospitals.join(', ')}</small>
-                            </div>
-                        </div>
-                        <div class="stats">
-                            <div style="font-size:12px; color:#666; text-transform:uppercase;">Total Booked</div>
-                            <div class="big-number">${d.total_booked}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            document.getElementById("topResults").innerHTML = html;
-            document.getElementById("leaderboardCard").style.display = "block";
-
-        } catch (err) {
-            showStatus('topStatus', "Error: " + err.message);
-        }
-    }
+    let html=`<h3 style="margin-bottom:8px">🏆 ${esc(name)}</h3>
+      <small>Found links: ${data.found_links||0} | Checked: ${data.checked||0}</small>`;
+    docs.forEach((d,i)=>{
+      const rank=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+      html+=`<div class="lb">
+        <div>
+          <div style="font-weight:800">${rank} ${esc(d.name)}</div>
+          <small>🏥 ${(d.hospitals||[]).map(esc).join(', ')||'N/A'}</small><br/>
+          <small>🩺 ${esc(d.specialty||'')} • Sessions: ${d.session_count||0}</small>
+        </div>
+        <div style="text-align:right">
+          <div class="big">${d.total_booked||0}</div>
+          <small>Active bookings</small>
+        </div>
+      </div>`;
+    });
+    const box=document.getElementById('tResults');
+    box.innerHTML=html; box.style.display='block';
+    show('tStatus',`✅ Top ${docs.length} doctors loaded`);
+  }catch(e){show('tStatus','Error: '+e.message)}
+}
 </script>
 </body>
 </html>
