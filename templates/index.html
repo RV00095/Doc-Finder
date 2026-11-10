@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Doctor Finder & Leaderboard - Sri Lanka</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #222; padding: 15px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { background: linear-gradient(135deg, #283593, #1976d2); color: #fff; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 15px; background: #ddd; border: none; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        .tab-btn.active { background: #1976d2; color: #fff; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .search-card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .input-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        input[type="text"], select { flex: 1; min-width: 240px; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; color: #fff; background: #1976d2; }
+        
+        .status-bar { background: #e3f2fd; color: #0d47a1; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: bold; display: none; text-align: center; }
+        
+        .card { background: #fff; border-radius: 10px; margin-bottom: 15px; padding: 15px; border-left: 5px solid #1976d2; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .doc-name { font-size: 18px; font-weight: bold; color: #b71c1c; margin-bottom: 5px;}
+        .badge { background: #e8eaf6; color: #283593; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+        .booked { background: #c8e6c9; color: #1b5e20; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
+        
+        .leaderboard-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
+        .leaderboard-item:nth-child(1) .rank { font-size: 24px; color: gold; }
+        .leaderboard-item:nth-child(2) .rank { font-size: 20px; color: silver; }
+        .leaderboard-item:nth-child(3) .rank { font-size: 18px; color: #cd7f32; }
+        .rank { font-size: 16px; font-weight: bold; width: 40px; }
+        .stats { text-align: right; }
+        .big-number { font-size: 24px; font-weight: bold; color: #2e7d32; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🏥 Doctor Finder & Leaderboard</h1>
+        <p>Live Bookings & Most Demanded Doctors in Sri Lanka</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('searchTab')">🔍 Search by Name</button>
+        <button class="tab-btn" onclick="switchTab('topTab')">🏆 Top Doctors by Specialty</button>
+    </div>
+
+    <!-- TAB 1: SEARCH -->
+    <div id="searchTab" class="tab-content active">
+        <div class="search-card">
+            <div class="input-group">
+                <input type="text" id="docInput" placeholder="Enter Doctor Name (e.g. Perera)" onkeypress="if(event.key==='Enter') searchDoc()">
+                <button class="btn" onclick="searchDoc()">Search</button>
+            </div>
+        </div>
+        <div class="status-bar" id="searchStatus"></div>
+        <div id="searchResults"></div>
+    </div>
+
+    <!-- TAB 2: TOP DOCTORS -->
+    <div id="topTab" class="tab-content">
+        <div class="search-card">
+            <div class="input-group">
+                <select id="specSelect"><option>Loading Specialties...</option></select>
+                <button class="btn" onclick="getTopDoctors()">Get Leaderboard</button>
+            </div>
+            <small style="color:#666; display:block; margin-top:10px;">* This checks live bookings for the top hospitals. It might take 15-30 seconds.</small>
+        </div>
+        <div class="status-bar" id="topStatus"></div>
+        <div class="card" style="display:none;" id="leaderboardCard">
+            <h3 style="margin-bottom: 15px; color:#1976d2;">🏆 Most Booked Doctors</h3>
+            <div id="topResults"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- UI LOGIC ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+        if (tabId === 'topTab' && document.getElementById('specSelect').options.length <= 1) {
+            loadSpecialties();
+        }
+    }
+
+    function showStatus(id, text) {
+        const el = document.getElementById(id);
+        el.style.display = 'block';
+        el.textContent = text;
+    }
+
+    // --- TAB 1: SEARCH DOCTOR ---
+    async function searchDoc() {
+        const query = document.getElementById("docInput").value;
+        const resultsArea = document.getElementById("searchResults");
+        resultsArea.innerHTML = "";
+        showStatus('searchStatus', "Searching hospitals...");
+
+        try {
+            const res = await fetch("/api/search", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({doctor: query}) });
+            const data = await res.json();
+            
+            if (!data.items || data.items.length === 0) {
+                showStatus('searchStatus', "No doctors found."); return;
+            }
+
+            showStatus('searchStatus', `Found ${data.items.length} hospital links. Loading sessions...`);
+            
+            let loadedCount = 0;
+            for (const item of data.items) {
+                // Create card skeleton
+                const cardId = 'card-' + Math.random().toString(36).substr(2, 9);
+                resultsArea.innerHTML += `
+                    <div class="card" id="${cardId}">
+                        <div class="doc-name">${item.doctor}</div>
+                        <span class="badge">🏥 ${item.hospital}</span>
+                        <span class="badge">🩺 ${item.specialty}</span>
+                        <div class="table-container" style="color:#666;">⏳ Loading live bookings...</div>
+                    </div>
+                `;
+                
+                // Fetch details asynchronously
+                fetch("/api/channel", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({url: item.channel_url, doctor: item.doctor}) })
+                .then(r => r.json())
+                .then(details => {
+                    let tbl = "";
+                    if (details.sessions && details.sessions.length > 0) {
+                        tbl = `<table><tr><th>Date</th><th>Time</th><th>Booked</th><th>Status</th></tr>`;
+                        details.sessions.forEach(s => {
+                            tbl += `<tr><td>📅 ${s.date}</td><td>⏰ ${s.time}</td><td><span class="${s.booked > 0 ? 'booked' : ''}">${s.booked} Active</span></td><td>${s.status}</td></tr>`;
+                        });
+                        tbl += `</table>`;
+                    } else {
+                        tbl = `<p style="color:#999; margin-top:10px;">No active sessions found.</p>`;
+                    }
+                    document.querySelector(`#${cardId} .table-container`).innerHTML = tbl;
+                    loadedCount++;
+                    showStatus('searchStatus', `Loaded ${loadedCount} / ${data.items.length} hospitals.`);
+                });
+            }
+        } catch (err) {
+            showStatus('searchStatus', "Error: " + err.message);
+        }
+    }
+
+    // --- TAB 2: TOP DOCTORS ---
+    async function loadSpecialties() {
+        try {
+            const res = await fetch("/api/get_specialties");
+            const specs = await res.json();
+            const sel = document.getElementById("specSelect");
+            sel.innerHTML = specs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        } catch (e) {
+            document.getElementById("specSelect").innerHTML = `<option>Error loading specialties</option>`;
+        }
+    }
+
+    async function getTopDoctors() {
+        const specId = document.getElementById("specSelect").value;
+        const specName = document.getElementById("specSelect").options[document.getElementById("specSelect").selectedIndex].text;
+        
+        document.getElementById("leaderboardCard").style.display = "none";
+        document.getElementById("topResults").innerHTML = "";
+        showStatus('topStatus', `Fetching all ${specName} doctors and calculating live bookings. Please wait... ⏳`);
+
+        try {
+            const res = await fetch("/api/top_doctors", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({specialty_id: specId}) });
+            const data = await res.json();
+            
+            document.getElementById("topStatus").style.display = "none";
+            
+            if (!data.doctors || data.doctors.length === 0) {
+                alert("No doctors found with active bookings for this specialty right now.");
+                return;
+            }
+
+            let html = "";
+            data.doctors.forEach((d, i) => {
+                const rankIcon = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i+1}`;
+                html += `
+                    <div class="leaderboard-item">
+                        <div style="display:flex; align-items:center; gap:15px;">
+                            <div class="rank">${rankIcon}</div>
+                            <div>
+                                <div class="doc-name" style="margin:0;">${d.name}</div>
+                                <small style="color:#666;">Hospitals: ${d.hospitals.join(', ')}</small>
+                            </div>
+                        </div>
+                        <div class="stats">
+                            <div style="font-size:12px; color:#666; text-transform:uppercase;">Total Booked</div>
+                            <div class="big-number">${d.total_booked}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById("topResults").innerHTML = html;
+            document.getElementById("leaderboardCard").style.display = "block";
+
+        } catch (err) {
+            showStatus('topStatus', "Error: " + err.message);
+        }
+    }
+</script>
+</body>
+</html>
