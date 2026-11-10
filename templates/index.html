@@ -11,10 +11,10 @@
         .hero-header { background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); color: white; padding: 2.5rem 0; margin-bottom: 2rem; }
         .card-custom { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .nav-pills .nav-link.active { background-color: #0d6efd; font-weight: 600; }
-        .badge-active { background-color: #198754; font-size: 0.9rem; }
+        .badge-active { background-color: #198754; font-size: 0.95rem; }
         .badge-high-demand { background-color: #dc3545; animation: pulse 2s infinite; font-size: 0.85rem; }
-        @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
-        .hospital-tag { background-color: #e9ecef; color: #495057; font-weight: 600; padding: 4px 8px; border-radius: 6px; margin-right: 5px; font-size: 0.85rem; }
+        @keyframes pulse { 0% { opacity: 0.85; } 50% { opacity: 1; } 100% { opacity: 0.85; } }
+        .hospital-tag { background-color: #e9ecef; color: #333; font-weight: 600; padding: 4px 10px; border-radius: 6px; margin-right: 5px; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -22,7 +22,7 @@
 <div class="hero-header text-center">
     <div class="container">
         <h1><i class="bi bi-hospital"></i> Doc990 Live Doctor Finder</h1>
-        <p class="lead mb-0">Search sessions & find Top Doctors ranked by active bookings with hospital details</p>
+        <p class="lead mb-0">Search sessions & Top Doctors ranked by live active bookings with hospital details</p>
     </div>
 </div>
 
@@ -63,7 +63,7 @@
 
             <div id="searchSpinner" class="text-center d-none my-5">
                 <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
-                <p class="mt-2 text-muted fw-bold">Searching live sessions across hospitals...</p>
+                <p class="mt-2 text-muted fw-bold">Fetching live active appointment counts...</p>
             </div>
 
             <div id="searchResults" class="d-none">
@@ -107,7 +107,7 @@
 
             <div id="topSpinner" class="text-center d-none my-5">
                 <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status"></div>
-                <p class="mt-2 text-muted fw-bold">Finding top doctors ranked by active bookings...</p>
+                <p class="mt-2 text-muted fw-bold">Calculating top doctors w.r.t active appointment counts...</p>
             </div>
 
             <div id="topResults" class="d-none">
@@ -144,8 +144,6 @@ async function loadSpecialties() {
             data.specialties.forEach(sp => {
                 select.innerHTML += `<option value="${sp.id}" data-name="${sp.name}">${sp.name}</option>`;
             });
-        } else {
-            select.innerHTML = '<option value="">Unable to load specialties</option>';
         }
     } catch (e) {
         console.error(e);
@@ -166,7 +164,7 @@ async function handleSearch(e) {
         currentSearchResults = data.sessions || [];
         renderSearchResults();
     } catch (err) {
-        alert('Failed to search sessions. Please try again.');
+        alert('Failed to search sessions.');
     } finally {
         document.getElementById('searchSpinner').classList.add('d-none');
     }
@@ -194,7 +192,7 @@ function renderSearchResults() {
                     <td class="fw-bold">${s.doctor_name}</td>
                     <td><span class="hospital-tag"><i class="bi bi-building"></i> ${s.hospital}</span></td>
                     <td>${s.date_time}</td>
-                    <td><span class="badge ${badgeClass} fs-6">${s.active_appointments} Booked</span></td>
+                    <td><span class="badge ${badgeClass} fs-6">${s.active_appointments} Active Bookings</span></td>
                     <td><small class="text-muted">${s.status}</small></td>
                     <td><a href="${s.source_url}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i> Channel</a></td>
                 </tr>
@@ -225,9 +223,9 @@ async function handleTopDoctors() {
         docsList.innerHTML = '';
 
         if (!data.doctors || data.doctors.length === 0) {
-            document.getElementById('topSummary').innerText = `No doctors found for ${specName}`;
+            document.getElementById('topSummary').innerText = `No active doctors found for ${specName}`;
         } else {
-            document.getElementById('topSummary').innerText = `${data.doctors.length} Doctors Found for ${specName} (Ranked by Active Bookings)`;
+            document.getElementById('topSummary').innerText = `${data.doctors.length} Doctors Found for ${specName} (Ranked Highest to Lowest Active Bookings)`;
 
             data.doctors.forEach((doc, idx) => {
                 const rank = idx + 1;
@@ -243,7 +241,7 @@ async function handleTopDoctors() {
                                 <div class="text-muted small">${s.date_time}</div>
                             </div>
                             <div>
-                                <span class="badge ${sessionBadge}">${s.active_appointments} Active Bookings</span>
+                                <span class="badge ${sessionBadge} fs-6">${s.active_appointments} Active Bookings</span>
                             </div>
                         </div>
                     `;
@@ -253,16 +251,16 @@ async function handleTopDoctors() {
                     <div class="card card-custom mb-3 p-3">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <span class="badge bg-primary fs-6 me-2">#${rank}</span>
+                                <span class="badge bg-primary fs-6 me-2">Rank #${rank}</span>
                                 <h4 class="d-inline fw-bold text-dark">${doc.doctor_name}</h4>
                                 ${doc.high_demand ? '<span class="badge badge-high-demand ms-2"><i class="bi bi-fire"></i> High Demand (10+ Bookings)</span>' : ''}
                                 <div class="mt-2 mb-2">
                                     <small class="text-muted fw-bold me-1">Hospitals:</small>
-                                    ${hospitalsHtml || '<span class="text-muted">General</span>'}
+                                    ${hospitalsHtml || '<span class="text-muted">General Hospital</span>'}
                                 </div>
                             </div>
                             <div class="text-end">
-                                <span class="badge badge-active fs-5">${doc.total_active_appointments} Total Bookings</span>
+                                <span class="badge badge-active fs-5">${doc.total_active_appointments} Active Bookings</span>
                                 <div class="mt-2">
                                     <a href="${doc.channel_url}" target="_blank" class="btn btn-sm btn-primary"><i class="bi bi-calendar-check"></i> Channel Now</a>
                                 </div>
