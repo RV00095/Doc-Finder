@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doc990 Finder & Top Doctors</title>
+    <title>Doc990 Live Doctor Finder</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -14,7 +14,7 @@
         .badge-active { background-color: #198754; font-size: 0.95rem; }
         .badge-high-demand { background-color: #dc3545; animation: pulse 2s infinite; font-size: 0.85rem; }
         @keyframes pulse { 0% { opacity: 0.85; } 50% { opacity: 1; } 100% { opacity: 0.85; } }
-        .hospital-tag { background-color: #e9ecef; color: #333; font-weight: 600; padding: 4px 10px; border-radius: 6px; margin-right: 5px; font-size: 0.85rem; }
+        .hospital-tag { background-color: #0d6efd; color: #fff; font-weight: 600; padding: 6px 12px; border-radius: 6px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -45,7 +45,7 @@
                 <form id="searchForm" class="row g-3 align-items-center">
                     <div class="col-md-8">
                         <label class="form-label fw-bold">Doctor Name</label>
-                        <input type="text" id="doctorQuery" class="form-control form-control-lg" placeholder="e.g. Perera or Karunaratne" required>
+                        <input type="text" id="doctorQuery" class="form-control form-control-lg" placeholder="e.g. Aruna Caldera" required>
                     </div>
                     <div class="col-md-4 d-grid mt-auto">
                         <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-search"></i> Search</button>
@@ -54,6 +54,7 @@
             </div>
             <div id="searchSpinner" class="text-center d-none my-5">
                 <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+                <p class="mt-2 text-muted fw-bold">Searching doctor sessions & hospitals...</p>
             </div>
             <div id="searchResults" class="d-none">
                 <div class="table-responsive bg-white rounded shadow-sm">
@@ -61,7 +62,7 @@
                         <thead class="table-dark">
                             <tr>
                                 <th>Doctor</th>
-                                <th>Hospital</th>
+                                <th>Hospital Name</th>
                                 <th>Date & Time</th>
                                 <th>Bookings</th>
                                 <th>Action</th>
@@ -90,7 +91,7 @@
             </div>
             <div id="topSpinner" class="text-center d-none my-5">
                 <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status"></div>
-                <p class="mt-2 text-muted fw-bold">Loading Top Doctors...</p>
+                <p class="mt-2 text-muted fw-bold">Loading Top Doctors by active bookings...</p>
             </div>
             <div id="topResults" class="d-none">
                 <div id="doctorsList"></div>
@@ -123,26 +124,33 @@ async function handleSearch(e) {
     e.preventDefault();
     const query = document.getElementById('doctorQuery').value.trim();
     if (!query) return;
+
     document.getElementById('searchSpinner').classList.remove('d-none');
     document.getElementById('searchResults').classList.add('d-none');
+
     try {
         const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
         const data = await res.json();
         const tbody = document.getElementById('sessionsTableBody');
         tbody.innerHTML = '';
-        data.sessions.forEach(s => {
-            const badgeClass = s.active_appointments >= 10 ? 'bg-danger' : (s.active_appointments > 0 ? 'bg-success' : 'bg-secondary');
-            tbody.innerHTML += `
-                <tr>
-                    <td class="fw-bold">${s.doctor_name}</td>
-                    <td><span class="hospital-tag"><i class="bi bi-building"></i> ${s.hospital}</span></td>
-                    <td>${s.date_time}</td>
-                    <td><span class="badge ${badgeClass} fs-6">${s.active_appointments} Bookings</span></td>
-                    <td><a href="${s.source_url}" target="_blank" class="btn btn-sm btn-outline-primary">Channel</a></td>
-                </tr>`;
-        });
+
+        if (!data.sessions || data.sessions.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No sessions found.</td></tr>`;
+        } else {
+            data.sessions.forEach(s => {
+                const badgeClass = s.active_appointments >= 10 ? 'bg-danger' : (s.active_appointments > 0 ? 'bg-success' : 'bg-secondary');
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${s.doctor_name}</td>
+                        <td><span class="hospital-tag"><i class="bi bi-building me-1"></i> ${s.hospital}</span></td>
+                        <td>${s.date_time}</td>
+                        <td><span class="badge ${badgeClass} fs-6">${s.active_appointments} Bookings</span></td>
+                        <td><a href="${s.source_url}" target="_blank" class="btn btn-sm btn-outline-primary">Channel</a></td>
+                    </tr>`;
+            });
+        }
         document.getElementById('searchResults').classList.remove('d-none');
-    } catch (err) { alert('Failed to search.'); }
+    } catch (err) { alert('Failed to search doctor.'); }
     finally { document.getElementById('searchSpinner').classList.add('d-none'); }
 }
 
@@ -161,58 +169,61 @@ async function handleTopDoctors() {
         const docsList = document.getElementById('doctorsList');
         docsList.innerHTML = '';
 
-        data.doctors.forEach((doc, idx) => {
-            // Group sessions by Hospital
-            let hospitalGroups = {};
-            doc.sessions.forEach(s => {
-                if (!hospitalGroups[s.hospital]) hospitalGroups[s.hospital] = [];
-                hospitalGroups[s.hospital].push(s);
-            });
-
-            let hospitalBlocksHtml = '';
-            for (let h in hospitalGroups) {
-                let hSessions = hospitalGroups[h];
-                let totalHBookings = hSessions.reduce((sum, s) => sum + s.active_appointments, 0);
-                
-                hospitalBlocksHtml += `
-                <div class="mb-3 border rounded p-3 bg-white shadow-sm">
-                    <h6 class="fw-bold text-primary mb-3 border-bottom pb-2">
-                        <i class="bi bi-building"></i> ${h} 
-                        <span class="badge bg-secondary ms-2">${hSessions.length} Sessions Available</span> 
-                        <span class="badge bg-success ms-1">${totalHBookings} Total Bookings Here</span>
-                    </h6>
-                    <div>`;
-                    
-                hSessions.forEach(s => {
-                    const badgeColor = s.active_appointments >= 10 ? 'bg-danger' : (s.active_appointments > 0 ? 'bg-success' : 'bg-secondary');
-                    hospitalBlocksHtml += `
-                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
-                            <span class="text-dark fw-medium"><i class="bi bi-calendar-event text-muted me-2"></i>${s.date_time}</span>
-                            <span class="badge ${badgeColor} fs-6">${s.active_appointments} Bookings</span>
-                        </div>`;
+        if (!data.doctors || data.doctors.length === 0) {
+            docsList.innerHTML = `<div class="alert alert-warning">No doctors found with active sessions.</div>`;
+        } else {
+            data.doctors.forEach((doc, idx) => {
+                let hospitalGroups = {};
+                doc.sessions.forEach(s => {
+                    if (!hospitalGroups[s.hospital]) hospitalGroups[s.hospital] = [];
+                    hospitalGroups[s.hospital].push(s);
                 });
-                hospitalBlocksHtml += `</div></div>`;
-            }
 
-            docsList.innerHTML += `
-                <div class="card card-custom mb-4 p-4 border-top border-primary border-4">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <span class="badge bg-primary fs-6 me-2">Rank #${idx + 1}</span>
-                            <h3 class="d-inline fw-bold text-dark">${doc.doctor_name}</h3>
-                            ${doc.high_demand ? '<span class="badge badge-high-demand ms-2"><i class="bi bi-fire"></i> High Demand (10+ Bookings)</span>' : ''}
+                let hospitalBlocksHtml = '';
+                for (let h in hospitalGroups) {
+                    let hSessions = hospitalGroups[h];
+                    let totalHBookings = hSessions.reduce((sum, s) => sum + s.active_appointments, 0);
+                    
+                    hospitalBlocksHtml += `
+                    <div class="mb-3 border rounded p-3 bg-white shadow-sm">
+                        <h6 class="fw-bold text-primary mb-3 border-bottom pb-2">
+                            <i class="bi bi-building"></i> ${h} 
+                            <span class="badge bg-secondary ms-2">${hSessions.length} Sessions</span> 
+                            <span class="badge bg-success ms-1">${totalHBookings} Bookings</span>
+                        </h6>
+                        <div>`;
+                        
+                    hSessions.forEach(s => {
+                        const badgeColor = s.active_appointments >= 10 ? 'bg-danger' : (s.active_appointments > 0 ? 'bg-success' : 'bg-secondary');
+                        hospitalBlocksHtml += `
+                            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
+                                <span class="text-dark fw-medium"><i class="bi bi-calendar-event text-muted me-2"></i>${s.date_time}</span>
+                                <span class="badge ${badgeColor} fs-6">${s.active_appointments} Bookings</span>
+                            </div>`;
+                    });
+                    hospitalBlocksHtml += `</div></div>`;
+                }
+
+                docsList.innerHTML += `
+                    <div class="card card-custom mb-4 p-4 border-top border-primary border-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <span class="badge bg-primary fs-6 me-2">Rank #${idx + 1}</span>
+                                <h3 class="d-inline fw-bold text-dark">${doc.doctor_name}</h3>
+                                ${doc.high_demand ? '<span class="badge badge-high-demand ms-2"><i class="bi bi-fire"></i> High Demand</span>' : ''}
+                            </div>
+                            <div class="text-end">
+                                <span class="badge badge-active fs-5 mb-2">${doc.total_active_appointments} Total Bookings</span><br>
+                                <a href="${doc.channel_url}" target="_blank" class="btn btn-primary"><i class="bi bi-calendar-check"></i> Channel Now</a>
+                            </div>
                         </div>
-                        <div class="text-end">
-                            <span class="badge badge-active fs-5 mb-2">${doc.total_active_appointments} Total Active Bookings</span><br>
-                            <a href="${doc.channel_url}" target="_blank" class="btn btn-primary"><i class="bi bi-calendar-check"></i> Channel Now</a>
+                        <div class="bg-light p-3 rounded">
+                            <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-hospital"></i> Hospital Breakdown:</h5>
+                            ${hospitalBlocksHtml}
                         </div>
-                    </div>
-                    <div class="bg-light p-3 rounded">
-                        <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-list-check"></i> Hospital Breakdown:</h5>
-                        ${hospitalBlocksHtml}
-                    </div>
-                </div>`;
-        });
+                    </div>`;
+            });
+        }
         document.getElementById('topResults').classList.remove('d-none');
     } catch (err) { alert('Failed to load top doctors.'); }
     finally { document.getElementById('topSpinner').classList.add('d-none'); }
