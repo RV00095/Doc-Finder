@@ -48,14 +48,6 @@ def fetch_doc_lk_specialties():
     except:
         return []
 
-def clean_hospital_name(raw_text):
-    if not raw_text: return ""
-    cleaned = re.sub(r'\d+$', '', raw_text).strip()
-    cleaned = re.sub(r'\(\d+\)', '', cleaned).strip()
-    cleaned = re.sub(r'\s*Sessions?$', '', cleaned, flags=re.I).strip()
-    if SPECIALTY_REJECT_PATTERN.search(cleaned): return ""
-    return cleaned
-
 def parse_channel_page(channel_url, fallback_doc_name="Unknown Doctor"):
     results = []
     doc_name = fallback_doc_name
@@ -64,46 +56,68 @@ def parse_channel_page(channel_url, fallback_doc_name="Unknown Doctor"):
         if r.status_code != 200: return doc_name, results
         soup = BeautifulSoup(r.text, 'html.parser')
 
-        # Doctor Name
+        hosp_name = "General Hospital"
+        
+        # 1. Extract Exact Hospital Name from Page Title
+        # Title Format: "Channel Dr. BHATHIYA RANASINGHE - NAWALOKA HOSPITAL - COLOMBO 02 - Doc990"
         title_tag = soup.find('title')
         if title_tag:
-            m = re.search(r'Channel\s+(.*?)\s+-', title_tag.get_text(), re.I)
-            if m: doc_name = m.group(1).strip()
+            t_txt = title_tag.get_text()
+            m_doc = re.search(r'Channel\s+(.*?)\s+-', t_txt, re.I)
+            if m_doc: 
+                doc_name = m_doc.group(1).strip()
+            
+            # Split by '-' and extract the middle parts for the Hospital Name
+            parts = t_txt.split('-')
+            if len(parts) >= 3:
+                extracted_hosp = " - ".join([p.strip() for p in parts[1:-1]]).strip()
+                if extracted_hosp and "Doc990" not in extracted_hosp:
+                    hosp_name = extracted_hosp
+
+        # Fallback if title extraction fails
+        if hosp_name == "General Hospital":
+            for tag in soup.find_all(['div', 'h4', 'strong', 'span']):
+                tag_txt = tag.get_text(strip=True)
+                if tag_txt.endswith('SESSIONS') and len(tag_txt) < 80:
+                    potential = tag_txt.replace('SESSIONS', '').replace('-','').strip()
+                    if potential and not SPECIALTY_REJECT_PATTERN.search(potential):
+                        hosp_name = potential
+                        break
+
         doc_name = re.sub(r'^Channel\s+', '', doc_name, flags=re.I).strip()
 
-        # Grouped Panels (Doc.lk Structure)
-        panels = soup.find_all('div', class_=re.compile(r'panel', re.I))
-        for panel in panels:
-            title_elem = panel.find(class_=re.compile(r'panel-title', re.I))
-            hosp_name = clean_hospital_name(title_elem.get_text(strip=True)) if title_elem else ""
+        # 2. Extract Sessions (Bulletproof extraction from <li> or <tr>)
+        blocks = soup.find_all(['li', 'tr'])
+        if not blocks:
+            blocks = soup.find_all('div', class_=re.compile(r'row|list-group-item', re.I))
 
-            if not hosp_name or len(hosp_name) < 3:
-                hosp_name = "General Hospital"
+        for block in blocks:
+            txt = " ".join(block.stripped_strings)
+            # Find blocks containing both a month and "ACTIVE APPOINTMENT"
+            if "ACTIVE APPOINTMENT" in txt.upper() and re.search(MONTHS_REGEX, txt, re.I):
+                
+                # Extract Bookings (Even if "SESSION FULL 30")
+                act_m = re.search(r'ACTIVE\s*APPOINTMENTS?\W*(\d+)', txt, re.I)
+                count = int(act_m.group(1)) if act_m else 0
 
-            for row in panel.find_all(['tr', 'li', 'div']):
-                r_txt = " ".join(row.stripped_strings)
-                # Ensure we are at the innermost session line
-                if re.search(MONTHS_REGEX, r_txt, re.I) and re.search(r'Active\s*App', r_txt, re.I):
-                    inner = [c for c in row.find_all(['tr', 'div']) if re.search(MONTHS_REGEX, " ".join(c.stripped_strings), re.I) and re.search(r'Active\s*App', " ".join(c.stripped_strings), re.I)]
-                    if inner: continue
+                # Extract Date Time
+                dt_m = re.search(r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}.*?(?:AM|PM|am|pm|\d{2}:\d{2}))', txt, re.I)
+                if not dt_m: 
+                    dt_m = re.search(r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})', txt, re.I)
+                
+                dt_str = dt_m.group(1).strip() if dt_m else "Session Date Available"
+                # Clean up trailing texts
+                dt_str = re.sub(r'(ACTIVE|APPOINTMENT|RS).*', '', dt_str, flags=re.I).strip()
 
-                    act_m = re.search(r'Active\s*Appointments?\s*:?\s*(\d+)', r_txt, re.I)
-                    count = int(act_m.group(1)) if act_m else 0
+                results.append({
+                    'doctor_name': doc_name,
+                    'hospital': hosp_name.upper(),
+                    'date_time': dt_str,
+                    'active_appointments': count,
+                    'source_url': channel_url
+                })
 
-                    dt_m = re.search(r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}.*?(?:AM|PM|am|pm|\d{2}:\d{2}))', r_txt, re.I)
-                    if not dt_m: dt_m = re.search(r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})', r_txt, re.I)
-                    
-                    dt_str = dt_m.group(1).strip() if dt_m else "Session Date Available"
-                    dt_str = re.sub(r'(Active|Appointment|Rs).*', '', dt_str, flags=re.I).strip()
-
-                    results.append({
-                        'doctor_name': doc_name,
-                        'hospital': hosp_name,
-                        'date_time': dt_str,
-                        'active_appointments': count,
-                        'source_url': channel_url
-                    })
-
+        # Deduplicate
         seen = set()
         unique_sessions = []
         for s in results:
@@ -139,8 +153,9 @@ def search():
             if full_url not in channel_links: channel_links.append(full_url)
 
         all_sessions = []
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            futures = [executor.submit(parse_channel_page, url) for url in channel_links[:12]]
+        # INCREASED LIMIT to 25 to catch all hospitals for busy doctors like Dr. Bhathiya
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            futures = [executor.submit(parse_channel_page, url) for url in channel_links[:25]]
             for future in as_completed(futures):
                 _, sessions = future.result()
                 all_sessions.extend(sessions)
@@ -164,7 +179,7 @@ def top_doctors():
     seen = set()
     for s_url in search_urls:
         try:
-            r = requests.get(s_url, headers=HEADERS, timeout=6)
+            r = requests.get(s_url, headers=HEADERS, timeout=8)
             soup = BeautifulSoup(r.text, 'html.parser')
             for a in soup.find_all('a', href=re.compile(r'/channel/\d+')):
                 href = a.get('href')
@@ -172,12 +187,12 @@ def top_doctors():
                 if full_url not in seen:
                     seen.add(full_url)
                     channel_links.append(full_url)
-            if len(channel_links) >= 5: break
+            if len(channel_links) >= 15: break # Gather more channels for leaderboard
         except: continue
 
     doctor_map = {}
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(parse_channel_page, url) for url in channel_links[:15]]
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        futures = [executor.submit(parse_channel_page, url) for url in channel_links[:25]]
         for future in as_completed(futures):
             doc_name, sessions = future.result()
             if not sessions: continue
